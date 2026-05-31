@@ -1,20 +1,16 @@
-// NOTE: Group compositions are based on the Dec 2024 FIFA draw.
-// Verify all team assignments and match dates against the official FIFA schedule
-// before the tournament starts (June 11, 2026).
-
 export const GROUPS = {
-  A: ['USA', 'Uruguay', 'Germany', 'Morocco'],
-  B: ['Mexico', 'Ecuador', 'Croatia', 'Algeria'],
-  C: ['Canada', 'Argentina', 'Belgium', 'Japan'],
-  D: ['Brazil', 'Serbia', 'South Korea', 'Egypt'],
-  E: ['Colombia', 'Spain', 'Senegal', 'Venezuela'],
-  F: ['Chile', 'France', 'Iran', 'Ivory Coast'],
-  G: ['Netherlands', 'England', 'South Africa', 'Australia'],
-  H: ['Portugal', 'Austria', 'Honduras', 'Tunisia'],
-  I: ['Italy', 'Denmark', 'Panama', 'Nigeria'],
-  J: ['Scotland', 'Romania', 'Jamaica', 'Jordan'],
-  K: ['Turkey', 'Poland', 'Saudi Arabia', 'DR Congo'],
-  L: ['Iraq', 'Indonesia', 'New Zealand', 'Slovenia'],
+  A: ['Mexico', 'South Africa', 'South Korea', 'Czech Republic'],
+  B: ['Canada', 'Bosnia and Herzegovina', 'Qatar', 'Switzerland'],
+  C: ['Brazil', 'Morocco', 'Haiti', 'Scotland'],
+  D: ['United States', 'Paraguay', 'Australia', 'Turkey'],
+  E: ['Germany', 'Curaçao', 'Ivory Coast', 'Ecuador'],
+  F: ['Netherlands', 'Japan', 'Sweden', 'Tunisia'],
+  G: ['Belgium', 'Egypt', 'Iran', 'New Zealand'],
+  H: ['Spain', 'Cape Verde', 'Saudi Arabia', 'Uruguay'],
+  I: ['France', 'Senegal', 'Iraq', 'Norway'],
+  J: ['Argentina', 'Algeria', 'Austria', 'Jordan'],
+  K: ['Portugal', 'DR Congo', 'Uzbekistan', 'Colombia'],
+  L: ['England', 'Croatia', 'Ghana', 'Panama'],
 }
 
 export const STAGE_NAMES = {
