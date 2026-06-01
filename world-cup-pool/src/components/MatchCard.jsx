@@ -19,7 +19,7 @@ function OddsBar({ odds }) {
         <div className="bg-red-500 transition-all duration-500" style={{ width: `${odds.away}%` }} />
       </div>
       <div className="text-center text-xs text-gray-600 mt-1">
-        Win probability · {odds.bookmakers} bookmaker{odds.bookmakers !== 1 ? 's' : ''}
+        Win probability · {odds.bookmakers} bookmaker{odds.bookmakers !== 1 ? 's' : ''} · 2× if underdog wins
       </div>
     </div>
   )
@@ -68,8 +68,14 @@ export default function MatchCard({ match, prediction: initialPrediction, onSave
     const actual = getOutcome(match.home_score, match.away_score)
     const predicted = getOutcome(prediction.home_score, prediction.away_score)
     const exact = prediction.home_score === match.home_score && prediction.away_score === match.away_score
-    if (exact) return { text: `Exact! +${formatPoints(pts)} pts`, color: 'text-emerald-400' }
-    if (actual === predicted) return { text: `Correct outcome +${formatPoints(pts)} pts`, color: 'text-blue-400' }
+    const upsetBonus =
+      actual !== 'draw' &&
+      match.home_prob != null && match.away_prob != null &&
+      ((actual === 'home' && match.home_prob < match.away_prob) ||
+       (actual === 'away' && match.away_prob < match.home_prob))
+    const bonus = upsetBonus ? ' · 2× upset' : ''
+    if (exact) return { text: `Exact! +${formatPoints(pts)} pts${bonus}`, color: 'text-emerald-400' }
+    if (actual === predicted) return { text: `Correct outcome +${formatPoints(pts)} pts${bonus}`, color: 'text-blue-400' }
     return { text: 'No points', color: 'text-gray-600' }
   }
 

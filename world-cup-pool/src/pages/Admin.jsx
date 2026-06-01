@@ -2,17 +2,24 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { STAGE_NAMES, KNOCKOUT_STAGES, GROUP_LETTERS } from '../data/tournament'
 import { computeGroupStandings, advanceGroupWinners, advanceKnockoutWinner, advanceThirdPlaceTeams } from '../lib/bracket'
+import { fetchAllOdds, getMatchOdds } from '../lib/odds'
 
-function ResultModal({ match, onSave, onClose }) {
+function ResultModal({ match, odds, onSave, onClose }) {
   const [home, setHome] = useState(match.home_score !== null ? String(match.home_score) : '')
   const [away, setAway] = useState(match.away_score !== null ? String(match.away_score) : '')
   const [saving, setSaving] = useState(false)
+
+  const underdog = odds
+    ? odds.home < odds.away ? { name: match.home_team, prob: odds.home }
+    : odds.away < odds.home ? { name: match.away_team, prob: odds.away }
+    : null
+    : null
 
   async function handleSave() {
     const h = parseInt(home); const a = parseInt(away)
     if (isNaN(h) || isNaN(a) || h < 0 || a < 0) return
     setSaving(true)
-    await onSave(match.id, h, a)
+    await onSave(match.id, h, a, odds?.home ?? null, odds?.away ?? null)
     setSaving(false)
     onClose()
   }
@@ -21,6 +28,11 @@ function ResultModal({ match, onSave, onClose }) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4" onClick={onClose}>
       <div className="card max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
         <h3 className="font-bold text-lg">{match.home_team} vs {match.away_team}</h3>
+        {underdog && (
+          <div className="text-xs text-amber-400 bg-amber-900/20 rounded px-3 py-1.5 text-center">
+            Underdog: <strong>{underdog.name}</strong> ({underdog.prob}% win prob) · 2× bonus applied if wins
+          </div>
+        )}
         <div className="flex items-center gap-3 justify-center">
           <div className="text-center">
             <div className="text-xs text-gray-500 mb-1">{match.home_team}</div>
@@ -70,6 +82,7 @@ export default function Admin() {
   const [matches, setMatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
+  const [editingOdds, setEditingOdds] = useState(null)
   const [toast, setToast] = useState('')
   const [activeTab, setActiveTab] = useState('group')
   const [activeGroup, setActiveGroup] = useState('A')
@@ -87,12 +100,28 @@ export default function Admin() {
 
   useEffect(() => { loadMatches() }, [loadMatches])
 
-  async function handleSaveResult(matchId, homeScore, awayScore) {
+  async function handleOpenEdit(match) {
+    setEditing(match)
+    // Try live API odds first; fall back to probs already stored on the match row
+    const events = await fetchAllOdds()
+    const liveOdds = events ? getMatchOdds(match.home_team, match.away_team, events) : null
+    if (liveOdds) {
+      setEditingOdds(liveOdds)
+    } else if (match.home_prob != null && match.away_prob != null) {
+      setEditingOdds({ home: match.home_prob, away: match.away_prob, draw: 100 - match.home_prob - match.away_prob, bookmakers: 0 })
+    } else {
+      setEditingOdds(null)
+    }
+  }
+
+  async function handleSaveResult(matchId, homeScore, awayScore, homeProb, awayProb) {
     // 1. Save result and recalculate points via RPC
     const { error } = await supabase.rpc('save_match_result', {
       p_match_id: matchId,
       p_home_score: homeScore,
       p_away_score: awayScore,
+      p_home_prob: homeProb,
+      p_away_prob: awayProb,
     })
 
     if (error) { showToast(`Error: ${error.message}`); return }
@@ -201,7 +230,7 @@ export default function Admin() {
           <div className="card">
             <h2 className="font-semibold mb-3">Group {activeGroup}</h2>
             {groupMatches.filter(m => m.group_letter === activeGroup).map(m => (
-              <MatchRow key={m.id} match={m} onEdit={setEditing} />
+              <MatchRow key={m.id} match={m} onEdit={handleOpenEdit} />
             ))}
           </div>
         </div>
@@ -215,7 +244,7 @@ export default function Admin() {
             return (
               <div key={stage} className="card">
                 <h2 className="font-semibold mb-3">{STAGE_NAMES[stage]}</h2>
-                {sm.map(m => <MatchRow key={m.id} match={m} onEdit={setEditing} />)}
+                {sm.map(m => <MatchRow key={m.id} match={m} onEdit={handleOpenEdit} />)}
               </div>
             )
           })}
@@ -225,8 +254,9 @@ export default function Admin() {
       {editing && (
         <ResultModal
           match={editing}
+          odds={editingOdds}
           onSave={handleSaveResult}
-          onClose={() => setEditing(null)}
+          onClose={() => { setEditing(null); setEditingOdds(null) }}
         />
       )}
 
