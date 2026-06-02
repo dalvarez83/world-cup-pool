@@ -1,27 +1,33 @@
 -- WC 2026 Pool Schema
--- Run this in your Supabase SQL editor before seeding data.
+-- Safe to re-run on an existing database — all statements are idempotent.
 
 create extension if not exists "uuid-ossp";
 
 -- ─── Profiles ───────────────────────────────────────────────────────────────
 
-create table public.profiles (
-  id          uuid references auth.users on delete cascade primary key,
+create table if not exists public.profiles (
+  id           uuid references auth.users on delete cascade primary key,
   display_name text not null,
-  is_admin    boolean default false,
-  created_at  timestamptz default now()
+  is_admin     boolean default false,
+  created_at   timestamptz default now()
 );
 
 alter table public.profiles enable row level security;
 
-create policy "Profiles readable by authenticated users" on public.profiles
-  for select using (auth.role() = 'authenticated');
+do $$ begin
+  create policy "Profiles readable by authenticated users" on public.profiles
+    for select using (auth.role() = 'authenticated');
+exception when duplicate_object then null; end $$;
 
-create policy "Users can insert own profile" on public.profiles
-  for insert with check (auth.uid() = id);
+do $$ begin
+  create policy "Users can insert own profile" on public.profiles
+    for insert with check (auth.uid() = id);
+exception when duplicate_object then null; end $$;
 
-create policy "Users can update own profile" on public.profiles
-  for update using (auth.uid() = id);
+do $$ begin
+  create policy "Users can update own profile" on public.profiles
+    for update using (auth.uid() = id);
+exception when duplicate_object then null; end $$;
 
 -- Auto-create a profile row when a new user signs up
 create or replace function public.handle_new_user()
@@ -34,45 +40,51 @@ begin
 end;
 $$;
 
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
 -- ─── Matches ────────────────────────────────────────────────────────────────
 
-create table public.matches (
+create table if not exists public.matches (
   id                     integer primary key,
   stage                  text not null check (stage in ('group','r32','r16','qf','sf','third_place','final')),
-  group_letter           text,                     -- 'A'..'L' for group matches
+  group_letter           text,
   match_number           integer not null,
   home_team              text not null,
   away_team              text not null,
-  home_team_placeholder  text,                     -- e.g. 'W-A', 'R-B', 'T3-3'
+  home_team_placeholder  text,
   away_team_placeholder  text,
   match_date             timestamptz,
   home_score             integer,
   away_score             integer,
   is_completed           boolean default false,
-  -- For auto-advancing knockout bracket:
   source_home_match_id   integer references public.matches(id),
   source_away_match_id   integer references public.matches(id),
-  source_home_is_loser   boolean default false,    -- true only for the 3rd-place match
+  source_home_is_loser   boolean default false,
   source_away_is_loser   boolean default false,
-  home_prob              integer,                   -- pre-match win probability % (0-100), from odds API
+  home_prob              integer,
   away_prob              integer
 );
 
+-- Add columns if upgrading from an older schema version
+alter table public.matches add column if not exists home_prob integer;
+alter table public.matches add column if not exists away_prob integer;
+
 alter table public.matches enable row level security;
 
-create policy "Matches publicly readable" on public.matches
-  for select using (true);
+do $$ begin
+  create policy "Matches publicly readable" on public.matches
+    for select using (true);
+exception when duplicate_object then null; end $$;
 
-create index matches_stage_idx on public.matches(stage);
-create index matches_group_idx on public.matches(group_letter);
+create index if not exists matches_stage_idx on public.matches(stage);
+create index if not exists matches_group_idx on public.matches(group_letter);
 
 -- ─── Predictions ────────────────────────────────────────────────────────────
 
-create table public.predictions (
+create table if not exists public.predictions (
   id         uuid default uuid_generate_v4() primary key,
   user_id    uuid references public.profiles(id) on delete cascade not null,
   match_id   integer references public.matches(id) on delete cascade not null,
@@ -86,17 +98,23 @@ create table public.predictions (
 
 alter table public.predictions enable row level security;
 
-create policy "Predictions readable by authenticated users" on public.predictions
-  for select using (auth.role() = 'authenticated');
+do $$ begin
+  create policy "Predictions readable by authenticated users" on public.predictions
+    for select using (auth.role() = 'authenticated');
+exception when duplicate_object then null; end $$;
 
-create policy "Users can insert own predictions" on public.predictions
-  for insert with check (auth.uid() = user_id);
+do $$ begin
+  create policy "Users can insert own predictions" on public.predictions
+    for insert with check (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
 
-create policy "Users can update own predictions" on public.predictions
-  for update using (auth.uid() = user_id);
+do $$ begin
+  create policy "Users can update own predictions" on public.predictions
+    for update using (auth.uid() = user_id);
+exception when duplicate_object then null; end $$;
 
-create index predictions_user_id_idx on public.predictions(user_id);
-create index predictions_match_id_idx on public.predictions(match_id);
+create index if not exists predictions_user_id_idx on public.predictions(user_id);
+create index if not exists predictions_match_id_idx on public.predictions(match_id);
 
 -- ─── Admin RPC: save result + recalculate points ─────────────────────────────
 
