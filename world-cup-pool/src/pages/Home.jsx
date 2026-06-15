@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import MatchCard from '../components/MatchCard'
 import { GROUPS, KNOCKOUT_STAGES, STAGE_NAMES, GROUP_LETTERS } from '../data/tournament'
+import { calculatePoints } from '../lib/scoring'
 
 function GroupStandings({ groupMatches }) {
   const teams = {}
@@ -83,7 +84,10 @@ export default function Home() {
   const knockoutMatches = matches.filter(m => m.stage !== 'group')
   const currentGroupMatches = groupMatches.filter(m => m.group_letter === activeGroup)
 
-  const totalPts = Object.values(predictions).reduce((s, p) => s + (p.points ?? 0), 0)
+  const totalPts = Object.values(predictions).reduce((s, p) => {
+    const match = matches.find(m => m.id === p.match_id)
+    return s + (match ? calculatePoints(p, match) : 0)
+  }, 0)
   const predCount = Object.keys(predictions).length
 
   return (

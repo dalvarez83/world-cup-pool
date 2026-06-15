@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPoints, getOutcome } from '../lib/scoring'
+import { formatPoints, getOutcome, calculatePoints } from '../lib/scoring'
 import { fetchAllOdds, getMatchOdds } from '../lib/odds'
 
 function OddsBar({ odds }) {
@@ -61,7 +61,7 @@ export default function MatchCard({ match, prediction: initialPrediction, onSave
 
   const isLocked = match.match_date && new Date(match.match_date) <= new Date()
   const isCompleted = match.is_completed
-  const pts = prediction?.points ?? 0
+  const pts = isCompleted && prediction ? calculatePoints(prediction, match) : 0
 
   function resultLabel() {
     if (!isCompleted || !prediction) return null

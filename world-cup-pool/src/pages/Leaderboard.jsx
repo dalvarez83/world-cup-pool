@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPoints } from '../lib/scoring'
+import { formatPoints, calculatePoints } from '../lib/scoring'
 
 export default function Leaderboard() {
   const { user } = useAuth()
@@ -10,30 +10,32 @@ export default function Leaderboard() {
 
   useEffect(() => {
     async function load() {
-      // Aggregate points per user
-      const { data: preds } = await supabase
-        .from('predictions')
-        .select('user_id, points, home_score, away_score, match_id')
+      const [
+        { data: preds },
+        { data: matches },
+        { data: profiles },
+      ] = await Promise.all([
+        supabase.from('predictions').select('user_id, home_score, away_score, match_id'),
+        supabase.from('matches').select('id, home_score, away_score, stage, is_completed, home_prob, away_prob').eq('is_completed', true),
+        supabase.from('profiles').select('id, display_name'),
+      ])
 
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, display_name')
+      if (!preds || !profiles || !matches) { setLoading(false); return }
 
-      if (!preds || !profiles) { setLoading(false); return }
+      const matchMap = {}
+      matches.forEach(m => { matchMap[m.id] = m })
 
       const profileMap = {}
       profiles.forEach(p => { profileMap[p.id] = p.display_name })
 
       const stats = {}
       preds.forEach(p => {
-        if (!stats[p.user_id]) stats[p.user_id] = { userId: p.user_id, total: 0, exact: 0, correct: 0, made: 0 }
-        stats[p.user_id].total += p.points ?? 0
+        if (!stats[p.user_id]) stats[p.user_id] = { userId: p.user_id, total: 0, correct: 0, made: 0 }
+        const match = matchMap[p.match_id]
+        const pts = match ? calculatePoints(p, match) : 0
+        stats[p.user_id].total += pts
         stats[p.user_id].made++
-        if (p.points > 0) {
-          // approximate: if points is a multiple of 3 * multiplier it's likely exact
-          // we store exact indicator separately would be cleaner, but this works for display
-          stats[p.user_id].correct++
-        }
+        if (pts > 0) stats[p.user_id].correct++
       })
 
       const sorted = Object.values(stats)

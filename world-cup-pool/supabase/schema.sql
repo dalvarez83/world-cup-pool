@@ -185,4 +185,4 @@ end;
 $$;
 
 -- Grant execute to authenticated users (is_admin check is inside the function)
-grant execute on function public.save_match_result(integer, integer, integer) to authenticated;
+grant execute on function public.save_match_result(integer, integer, integer, integer, integer) to authenticated;
