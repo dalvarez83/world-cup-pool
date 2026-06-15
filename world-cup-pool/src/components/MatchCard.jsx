@@ -50,10 +50,8 @@ export default function MatchCard({ match, prediction: initialPrediction, onSave
     }
   }, [initialPrediction])
 
-  // Fetch odds for upcoming matches only
   useEffect(() => {
-    const upcoming = !match.is_completed && (!match.match_date || new Date(match.match_date) > new Date())
-    if (!upcoming) return
+    if (match.is_completed) return
     fetchAllOdds().then(events => {
       if (events) setMatchOdds(getMatchOdds(match.home_team, match.away_team, events))
     })
