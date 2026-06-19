@@ -10,23 +10,19 @@ export default function Leaderboard() {
 
   useEffect(() => {
     async function load() {
-      const [
-        { data: preds },
-        { data: matches },
-        { data: profiles },
-      ] = await Promise.all([
+      const [{ data: preds }, { data: profiles }, { data: matches }] = await Promise.all([
         supabase.from('predictions').select('user_id, home_score, away_score, match_id'),
-        supabase.from('matches').select('id, home_score, away_score, stage, is_completed, home_prob, away_prob').eq('is_completed', true),
         supabase.from('profiles').select('id, display_name'),
+        supabase.from('matches').select('id, stage, home_score, away_score, is_completed, home_prob, away_prob').eq('is_completed', true),
       ])
 
       if (!preds || !profiles || !matches) { setLoading(false); return }
 
-      const matchMap = {}
-      matches.forEach(m => { matchMap[m.id] = m })
-
       const profileMap = {}
       profiles.forEach(p => { profileMap[p.id] = p.display_name })
+
+      const matchMap = {}
+      matches.forEach(m => { matchMap[m.id] = m })
 
       const stats = {}
       preds.forEach(p => {
