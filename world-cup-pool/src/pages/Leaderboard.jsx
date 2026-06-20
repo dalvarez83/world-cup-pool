@@ -15,7 +15,7 @@ export default function Leaderboard() {
       { data: profiles, error: profErr },
       { data: matches,  error: matchErr },
     ] = await Promise.all([
-      supabase.from('predictions').select('user_id, home_score, away_score, match_id'),
+      supabase.from('predictions').select('user_id, home_score, away_score, match_id').limit(5000),
       supabase.from('profiles').select('id, display_name'),
       supabase.from('matches')
         .select('id, stage, home_score, away_score, is_completed, home_prob, away_prob')
