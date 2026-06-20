@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPoints, calculatePoints } from '../lib/scoring'
@@ -8,41 +8,51 @@ export default function Leaderboard() {
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      const [{ data: preds }, { data: profiles }, { data: matches }] = await Promise.all([
-        supabase.from('predictions').select('user_id, home_score, away_score, match_id'),
-        supabase.from('profiles').select('id, display_name'),
-        supabase.from('matches').select('id, stage, home_score, away_score, is_completed, home_prob, away_prob').eq('is_completed', true),
-      ])
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [
+      { data: preds,    error: predErr },
+      { data: profiles, error: profErr },
+      { data: matches,  error: matchErr },
+    ] = await Promise.all([
+      supabase.from('predictions').select('user_id, home_score, away_score, match_id'),
+      supabase.from('profiles').select('id, display_name'),
+      supabase.from('matches')
+        .select('id, stage, home_score, away_score, is_completed, home_prob, away_prob')
+        .eq('is_completed', true),
+    ])
 
-      if (!preds || !profiles || !matches) { setLoading(false); return }
+    if (predErr)  console.error('leaderboard – predictions:', predErr)
+    if (profErr)  console.error('leaderboard – profiles:', profErr)
+    if (matchErr) console.error('leaderboard – matches:', matchErr)
 
-      const profileMap = {}
-      profiles.forEach(p => { profileMap[p.id] = p.display_name })
+    if (!preds || !profiles || !matches) { setLoading(false); return }
 
-      const matchMap = {}
-      matches.forEach(m => { matchMap[m.id] = m })
+    const profileMap = {}
+    profiles.forEach(p => { profileMap[p.id] = p.display_name })
 
-      const stats = {}
-      preds.forEach(p => {
-        if (!stats[p.user_id]) stats[p.user_id] = { userId: p.user_id, total: 0, correct: 0, made: 0 }
-        const match = matchMap[p.match_id]
-        const pts = match ? calculatePoints(p, match) : 0
-        stats[p.user_id].total += pts
-        stats[p.user_id].made++
-        if (pts > 0) stats[p.user_id].correct++
-      })
+    const matchMap = {}
+    matches.forEach(m => { matchMap[m.id] = m })
 
-      const sorted = Object.values(stats)
-        .sort((a, b) => b.total - a.total)
-        .map((s, i) => ({ ...s, rank: i + 1, name: profileMap[s.userId] ?? 'Unknown' }))
+    const stats = {}
+    preds.forEach(p => {
+      if (!stats[p.user_id]) stats[p.user_id] = { userId: p.user_id, total: 0, correct: 0, made: 0 }
+      const match = matchMap[p.match_id]
+      const pts = match ? calculatePoints(p, match) : 0
+      stats[p.user_id].total += pts
+      stats[p.user_id].made++
+      if (pts > 0) stats[p.user_id].correct++
+    })
 
-      setRows(sorted)
-      setLoading(false)
-    }
-    load()
+    const sorted = Object.values(stats)
+      .sort((a, b) => b.total - a.total)
+      .map((s, i) => ({ ...s, rank: i + 1, name: profileMap[s.userId] ?? 'Unknown' }))
+
+    setRows(sorted)
+    setLoading(false)
   }, [])
+
+  useEffect(() => { load() }, [load])
 
   if (loading) return <div className="text-center text-gray-500 py-20">Loading leaderboard…</div>
 
@@ -50,7 +60,10 @@ export default function Leaderboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Leaderboard</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Leaderboard</h1>
+        <button onClick={load} className="btn-secondary text-sm px-3 py-1.5">Refresh</button>
+      </div>
 
       {myRank && (
         <div className="card bg-amber-500/10 border-amber-500/30">
