@@ -7,10 +7,12 @@ let pendingFetch = null
 
 // Some teams have different names in The Odds API vs our data
 const ALIASES = {
-  'USA': ['United States', 'USA'],
+  'United States': ['United States', 'USA'],
   'South Korea': ['South Korea', 'Korea Republic'],
   'Ivory Coast': ['Ivory Coast', "Cote d'Ivoire", "Côte d'Ivoire", 'Cote dIvoire'],
   'DR Congo': ['DR Congo', 'Congo DR', 'Democratic Republic of Congo', 'Congo, DR'],
+  'Bosnia and Herzegovina': ['Bosnia and Herzegovina', 'Bosnia & Herzegovina', 'Bosnia-Herzegovina', 'Bosnia'],
+  'Cape Verde': ['Cape Verde', 'Cabo Verde'],
   'New Zealand': ['New Zealand'],
   'Saudi Arabia': ['Saudi Arabia'],
 }
