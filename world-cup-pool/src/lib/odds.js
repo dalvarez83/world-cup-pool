@@ -94,12 +94,24 @@ export function getMatchOdds(homeTeam, awayTeam, events) {
     })
   })
 
-  if (!homePrices.length || !drawPrices.length || !awayPrices.length) return null
+  if (!homePrices.length || !awayPrices.length) return null
 
   const avg = arr => arr.reduce((s, x) => s + x, 0) / arr.length
   const rh = 1 / avg(homePrices)
-  const rd = 1 / avg(drawPrices)
   const ra = 1 / avg(awayPrices)
+
+  if (!drawPrices.length) {
+    // 2-way market (knockout rounds without draw option)
+    const total = rh + ra
+    return {
+      home: Math.round((rh / total) * 100),
+      draw: 0,
+      away: Math.round((ra / total) * 100),
+      bookmakers: event.bookmakers.length,
+    }
+  }
+
+  const rd = 1 / avg(drawPrices)
   const total = rh + rd + ra
 
   return {

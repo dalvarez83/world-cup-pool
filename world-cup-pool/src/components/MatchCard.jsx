@@ -6,20 +6,21 @@ import { fetchAllOdds, getMatchOdds } from '../lib/odds'
 
 function OddsBar({ odds }) {
   if (!odds) return null
+  const hasThreeWay = odds.draw > 0
   return (
     <div className="mt-3 pt-2 border-t border-navy-700">
       <div className="flex justify-between text-xs font-medium mb-1">
         <span className="text-blue-400">{odds.home}%</span>
-        <span className="text-gray-500">{odds.draw}% draw</span>
+        {hasThreeWay && <span className="text-gray-500">{odds.draw}% draw</span>}
         <span className="text-red-400">{odds.away}%</span>
       </div>
       <div className="flex rounded-full overflow-hidden h-2 gap-px">
         <div className="bg-blue-500 transition-all duration-500" style={{ width: `${odds.home}%` }} />
-        <div className="bg-gray-600 transition-all duration-500" style={{ width: `${odds.draw}%` }} />
+        {hasThreeWay && <div className="bg-gray-600 transition-all duration-500" style={{ width: `${odds.draw}%` }} />}
         <div className="bg-red-500 transition-all duration-500" style={{ width: `${odds.away}%` }} />
       </div>
       <div className="text-center text-xs text-gray-600 mt-1">
-        Win probability · {odds.bookmakers} bookmaker{odds.bookmakers !== 1 ? 's' : ''} · 2× if underdog wins
+        {hasThreeWay ? 'Win probability' : 'Win probability (incl. ET & pens)'} · {odds.bookmakers} bookmaker{odds.bookmakers !== 1 ? 's' : ''} · 2× if underdog wins
       </div>
     </div>
   )
@@ -51,11 +52,10 @@ export default function MatchCard({ match, prediction: initialPrediction, onSave
   }, [initialPrediction])
 
   useEffect(() => {
-    if (match.is_completed) return
     fetchAllOdds().then(events => {
       if (events) setMatchOdds(getMatchOdds(match.home_team, match.away_team, events))
     })
-  }, [match.id, match.home_team, match.away_team, match.is_completed])
+  }, [match.id, match.home_team, match.away_team])
 
   const isLocked = match.match_date && new Date(match.match_date) <= new Date()
   const isCompleted = match.is_completed
@@ -170,7 +170,7 @@ export default function MatchCard({ match, prediction: initialPrediction, onSave
         </div>
       )}
 
-      {!isCompleted && <OddsBar odds={matchOdds} />}
+      <OddsBar odds={matchOdds} />
     </div>
   )
 }
