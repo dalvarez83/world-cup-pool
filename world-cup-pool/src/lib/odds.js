@@ -33,7 +33,10 @@ function namesMatch(ourName, apiName) {
 
 export async function fetchAllOdds() {
   const apiKey = import.meta.env.VITE_ODDS_API_KEY
-  if (!apiKey) return null
+  if (!apiKey) {
+    console.warn('[odds] VITE_ODDS_API_KEY is not set — odds disabled')
+    return null
+  }
 
   const now = Date.now()
   if (oddsCache && now - cacheFetchedAt < CACHE_TTL) return oddsCache
@@ -46,12 +49,17 @@ export async function fetchAllOdds() {
       const res = await fetch(
         `https://api.the-odds-api.com/v4/sports/${SPORT_KEY}/odds/?apiKey=${apiKey}&regions=us,eu&markets=h2h&oddsFormat=decimal`
       )
-      if (!res.ok) return oddsCache ?? null
+      if (!res.ok) {
+        console.warn('[odds] API error', res.status, await res.text().catch(() => ''))
+        return oddsCache ?? null
+      }
       const events = await res.json()
+      console.log(`[odds] fetched ${events.length} events from The Odds API`)
       oddsCache = events
       cacheFetchedAt = Date.now()
       return events
-    } catch {
+    } catch (e) {
+      console.warn('[odds] fetch failed', e)
       return oddsCache ?? null
     } finally {
       pendingFetch = null
@@ -74,7 +82,11 @@ export function getMatchOdds(homeTeam, awayTeam, events) {
     return homeMatch && awayMatch
   })
 
-  if (!event || !event.bookmakers?.length) return null
+  if (!event) {
+    console.log(`[odds] no event found for: ${homeTeam} vs ${awayTeam}`)
+    return null
+  }
+  if (!event.bookmakers?.length) return null
 
   const isFlipped = namesMatch(homeTeam, event.away_team)
 
